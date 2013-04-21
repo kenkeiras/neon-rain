@@ -9,6 +9,21 @@
 #include "vroot.h"
 
 
+#define MAX_CIRCLES 256
+
+struct circle {
+    int centerX;
+    int centerY;
+    int extRadius;
+    int intRadius;
+};
+
+struct rgb {
+    double r;
+    double g;
+    double b;
+};
+
 /* Hue to Red-Green-Blue */
 double Hue_to_RGB(double P, double Q, double H){
     if (H < 0) {
@@ -31,14 +46,12 @@ double Hue_to_RGB(double P, double Q, double H){
 }
 
 /* Hue-Saturation-Light to Red-Green-Blue */
-void hsl2rgb(double h, double s, double l,
-             double *r, double *g, double *b){
+struct rgb hsl2rgb(double h, double s, double l){
 
     double P, Q;
 
     if (( l == 0 ) || ( s == 0 )){
-        *r = *r = *b = l;
-        return;
+        return (struct rgb) {.r = l, .g = l, .b = l};
     }
 
     h /= 255.;
@@ -52,15 +65,23 @@ void hsl2rgb(double h, double s, double l,
 
     P = 2.0 * l - Q;
 
-    *r = 255 * Hue_to_RGB(P, Q, h + 1.0/3.0);
-    *g = 255 * Hue_to_RGB(P, Q, h);
-    *b = 255 * Hue_to_RGB(P, Q, h - 1.0/3.0);
+    return (struct rgb) {
+        .r = 255 * Hue_to_RGB(P, Q, h + 1.0/3.0),
+        .g = 255 * Hue_to_RGB(P, Q, h),
+        .b = 255 * Hue_to_RGB(P, Q, h - 1.0/3.0)};
 }
+
+
+void paint_circle(struct circle circle, Display *dpy, Pixmap double_buffer, GC gc, XWindowAttributes wa){
+
+}
+
 
 
 /* Main function, too big :/ */
 int main (int argc, char **argv){
     srandom(time(NULL)); /* Pseudo-randomness initialization */
+
 
     /* ### Variable declaration ### */
     /* X11 variables */
@@ -72,6 +93,11 @@ int main (int argc, char **argv){
     int pixsize; /* Pixel size */
     char *display_id;
     Pixmap double_buffer;
+
+
+    /* Rain variables */
+    struct circle circles[MAX_CIRCLES] = {(struct circle) {.centerX = 100, .centerY = 100, .extRadius = 100, .intRadius = 50}};
+    int circle_num = 1;
 
 
     /* ### Preparing X enviroment ### */
@@ -120,12 +146,21 @@ int main (int argc, char **argv){
     /* create a GC for drawing in the window */
     gc = XCreateGC (dpy, root, 0, NULL);
 
-    /* get attributes of the root window */
-    XGetWindowAttributes(dpy, root, &wa);
-
     /* Here starts the action: */
     while (1){
-        sleep(1);
+        /* get attributes of the root window (could have changed) */
+        XGetWindowAttributes(dpy, root, &wa);
+
+        /* Clear the double buffer */
+        double_buffer = XCreatePixmap(
+            dpy, root, wa.width, wa.height, wa.depth);
+
+
+        int i;
+        for (i = 0; i < circle_num; i++){
+            paint_circle(circles[i], dpy, double_buffer, gc, wa);
+        }
+        usleep(10000);
     }
 
     /* It actually never reaches here :P */
