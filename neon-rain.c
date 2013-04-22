@@ -14,14 +14,15 @@
 struct circle {
     int centerX;
     int centerY;
-    int extRadius;
-    int intRadius;
+    int outerRadius;
+    int innerRadius;
+    XColor color;
 };
 
 struct rgb {
-    double r;
-    double g;
-    double b;
+    int r;
+    int g;
+    int b;
 };
 
 /* Hue to Red-Green-Blue */
@@ -73,7 +74,24 @@ struct rgb hsl2rgb(double h, double s, double l){
 
 
 void paint_circle(struct circle circle, Display *dpy, Pixmap double_buffer, GC gc, XWindowAttributes wa){
+    int border;
+    int narcs = circle.outerRadius - circle.innerRadius;
 
+    XArc arcs[narcs];
+
+    int i;
+    for (border = circle.innerRadius, i = 0;border < circle.outerRadius; border++, i++){
+        arcs[i] = (XArc) {.x = circle.centerX - (border / 2),
+                          .y = circle.centerY - (border / 2),
+                          .width = border,
+                          .height = border,
+                          .angle1 = 0,
+                          .angle2 = 360 * 64
+        };
+    }
+
+    XSetForeground(dpy, gc, circle.color.pixel);
+    XDrawArcs(dpy, double_buffer, gc, arcs, narcs);
 }
 
 
@@ -89,15 +107,16 @@ int main (int argc, char **argv){
     Window root;
     XWindowAttributes wa;
     GC gc;
-    XColor xc, sc;
-    int pixsize; /* Pixel size */
     char *display_id;
     Pixmap double_buffer;
+    char color_buffer[12]; /* Color string buffer */
 
 
     /* Rain variables */
-    struct circle circles[MAX_CIRCLES] = {(struct circle) {.centerX = 100, .centerY = 100, .extRadius = 100, .intRadius = 50}};
-    int circle_num = 1;
+    struct circle circles[MAX_CIRCLES];
+    int raining_speed = 25;
+    int spread_speed = 2;
+    int circle_num = 0;
 
 
     /* ### Preparing X enviroment ### */
@@ -146,6 +165,7 @@ int main (int argc, char **argv){
     /* create a GC for drawing in the window */
     gc = XCreateGC (dpy, root, 0, NULL);
 
+
     /* Here starts the action: */
     while (1){
         /* get attributes of the root window (could have changed) */
@@ -156,11 +176,47 @@ int main (int argc, char **argv){
             dpy, root, wa.width, wa.height, wa.depth);
 
 
+        if ((circle_num == 0) ||
+            ((circle_num < MAX_CIRCLES) && ((rand() % 256) < raining_speed))){
+
+
+            // Circle properties
+            circles[circle_num] = (struct circle) {.centerX = rand() % wa.width,
+                                                   .centerY = rand() % wa.height,
+                                                   .outerRadius = 50,
+                                                   .innerRadius = 1
+            };
+
+            // Circle color
+            struct rgb color = hsl2rgb(rand() % 256,
+                                       1.0f,
+                                       100);
+
+            sprintf(color_buffer, "rgb:%02x/%02x/%02x", color.r, color.g, color.b);
+
+            XColor stub;
+            XAllocNamedColor(dpy,
+                             DefaultColormapOfScreen(
+                                 DefaultScreenOfDisplay(dpy)),
+                             color_buffer, &circles[circle_num].color, &stub);
+
+
+            circle_num++;
+            printf("-> %i\n", circle_num);
+        }
+
         int i;
         for (i = 0; i < circle_num; i++){
             paint_circle(circles[i], dpy, double_buffer, gc, wa);
+            circles[i].innerRadius += spread_speed;
+            circles[i].outerRadius += spread_speed;
         }
-        usleep(10000);
+
+
+        XCopyArea(dpy, double_buffer, root,
+                  gc, 0, 0, wa.width, wa.height, 0, 0);
+
+        usleep(100000);
     }
 
     /* It actually never reaches here :P */
