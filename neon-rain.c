@@ -9,14 +9,17 @@
 #include "vroot.h"
 
 
-#define MAX_CIRCLES 256
+#define MAX_CIRCLES 7
 
 struct circle {
     int centerX;
     int centerY;
     int outerRadius;
     int innerRadius;
-    XColor color;
+    int innerAdvanceSpeed;
+    int outerAdvanceSpeed;
+    int hue;
+    int sat;
 };
 
 struct rgb {
@@ -46,13 +49,14 @@ double Hue_to_RGB(double P, double Q, double H){
     return P;
 }
 
-/* Hue-Saturation-Light to Red-Green-Blue */
-struct rgb hsl2rgb(double h, double s, double l){
+/* Hue-Saturation-Light to XColor */
+long int hsl2x(double h, double s, double l){
 
     double P, Q;
 
     if (( l == 0 ) || ( s == 0 )){
-        return (struct rgb) {.r = l, .g = l, .b = l};
+        int light = l * 256;
+        return (light << 16) | (light << 8) | light;
     }
 
     h /= 255.;
@@ -66,10 +70,9 @@ struct rgb hsl2rgb(double h, double s, double l){
 
     P = 2.0 * l - Q;
 
-    return (struct rgb) {
-        .r = 255 * Hue_to_RGB(P, Q, h + 1.0/3.0),
-        .g = 255 * Hue_to_RGB(P, Q, h),
-        .b = 255 * Hue_to_RGB(P, Q, h - 1.0/3.0)};
+    return ((int) (255 * Hue_to_RGB(P, Q, h + 1.0/3.0)) << 16) |
+        ((int) (255 * Hue_to_RGB(P, Q, h)) << 8) |
+        ((int) (255 * Hue_to_RGB(P, Q, h - 1.0/3.0)));
 }
 
 
@@ -90,10 +93,9 @@ void paint_circle(struct circle circle, Display *dpy, Pixmap double_buffer, GC g
         };
     }
 
-    XSetForeground(dpy, gc, circle.color.pixel);
+    XSetForeground(dpy, gc,  hsl2x(circle.hue, 1.0f, 0.75f));
     XDrawArcs(dpy, double_buffer, gc, arcs, narcs);
 }
-
 
 
 /* Main function, too big :/ */
@@ -109,13 +111,10 @@ int main (int argc, char **argv){
     GC gc;
     char *display_id;
     Pixmap double_buffer;
-    char color_buffer[12]; /* Color string buffer */
-
 
     /* Rain variables */
     struct circle circles[MAX_CIRCLES];
     int raining_speed = 25;
-    int spread_speed = 2;
     int circle_num = 0;
 
 
@@ -181,36 +180,38 @@ int main (int argc, char **argv){
 
 
             // Circle properties
+            int innerAdvanceSpeed = rand() % 5 + 2;
             circles[circle_num] = (struct circle) {.centerX = rand() % wa.width,
                                                    .centerY = rand() % wa.height,
                                                    .outerRadius = 50,
-                                                   .innerRadius = 1
+                                                   .innerRadius = 1,
+                                                   .innerAdvanceSpeed = innerAdvanceSpeed,
+                                                   .outerAdvanceSpeed = innerAdvanceSpeed / (((rand() % 75) + 100) / 100.0f),
+                                                   .hue = rand() % 256,
             };
 
-            // Circle color
-            struct rgb color = hsl2rgb(rand() % 256,
-                                       1.0f,
-                                       100);
-
-            sprintf(color_buffer, "rgb:%02x/%02x/%02x", color.r, color.g, color.b);
-
-            XColor stub;
-            XAllocNamedColor(dpy,
-                             DefaultColormapOfScreen(
-                                 DefaultScreenOfDisplay(dpy)),
-                             color_buffer, &circles[circle_num].color, &stub);
-
-
             circle_num++;
-            printf("-> %i\n", circle_num);
         }
 
-        int i;
-        for (i = 0; i < circle_num; i++){
+        int i, j;
+        for (i = j = 0; i < circle_num; i++){
+
+            // Delete done circles
+            if (circles[i].innerRadius >= circles[i].outerRadius){
+                continue;
+            }
+
+            if (i != j){
+                circles[j] = circles[i];
+            }
+
             paint_circle(circles[i], dpy, double_buffer, gc, wa);
-            circles[i].innerRadius += spread_speed;
-            circles[i].outerRadius += spread_speed;
+            circles[i].innerRadius += circles[i].innerAdvanceSpeed;
+            circles[i].outerRadius += circles[i].outerAdvanceSpeed;
+
+            j++;
         }
+        circle_num = j;
 
 
         XCopyArea(dpy, double_buffer, root,
