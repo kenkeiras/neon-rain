@@ -15,6 +15,7 @@
 #include <GL/glu.h>
 
 #define MAX_CIRCLES 7
+#define RAINING_SPEED 25
 
 struct circle {
     int centerX;
@@ -104,15 +105,6 @@ void DrawCircle(float cx, float cy, float r, int num_segments){
 }
 
 void paint_circle(struct circle circle, XWindowAttributes wa) {
-    glLoadIdentity();
-
-    glOrtho(0, wa.width, wa.height, 0, 0.0f, 100.0f);
-
-    glClearColor(0, 0, 0, 0.5f);
-    glClearDepth( 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT |
-            GL_DEPTH_BUFFER_BIT);
-
     struct rgb color = hsl2rgb(circle.hue, 1, 0.75);
     glColor3f(color.r, color.g, color.b);
 
@@ -138,6 +130,34 @@ struct circle create_circle(XWindowAttributes wa){
 }
 
 
+int refresh_circles(XWindowAttributes wa, struct circle circles[], int circle_num){
+    if ((circle_num == 0) ||
+        ((circle_num < MAX_CIRCLES) && ((rand() % 256) < RAINING_SPEED))){
+
+        circles[circle_num++] = create_circle(wa);
+    }
+
+    int i, j;
+    for (i = j = 0; i < circle_num; i++){
+
+        // Delete done circles
+        if (circles[i].innerRadius >= circles[i].outerRadius){
+            continue;
+        }
+
+        if (i != j){
+            circles[j] = circles[i];
+        }
+
+        paint_circle(circles[i], wa);
+        circles[i].innerRadius += circles[i].innerAdvanceSpeed;
+        circles[i].outerRadius += circles[i].outerAdvanceSpeed;
+        j++;
+    }
+    return j;
+}
+
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
@@ -157,7 +177,6 @@ int main(int argc, char *argv[]) {
 
     /* Rain variables */
     struct circle circles[MAX_CIRCLES];
-    int raining_speed = 25;
     int circle_num = 0;
 
     /* ### Preparing X enviroment ### */
@@ -232,37 +251,19 @@ int main(int argc, char *argv[]) {
     glHint(GL_LINE_SMOOTH_HINT,  GL_NICEST);
 
     while(1) {
-        if ((circle_num == 0) ||
-            ((circle_num < MAX_CIRCLES) && ((rand() % 256) < raining_speed))){
-
-            circles[circle_num++] = create_circle(gwa);
-        }
-
         XGetWindowAttributes(dpy, win, &gwa);
+        glLoadIdentity();
+
+        glOrtho(0, gwa.width, gwa.height, 0, 0.0f, 100.0f);
+
+        glClearColor(0, 0, 0, 0.5f);
+        glClearDepth( 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT |
+                GL_DEPTH_BUFFER_BIT);
+
         glViewport(0, 0, gwa.width, gwa.height);
 
-
-        int i, j;
-        for (i = j = 0; i < circle_num; i++){
-
-            // Delete done circles
-            if (circles[i].innerRadius >= circles[i].outerRadius){
-                printf("%i -> %i\n", circles[i].innerRadius, circles[i].outerRadius);
-                fflush(stdout);
-                continue;
-            }
-
-            if (i != j){
-                circles[j] = circles[i];
-            }
-
-            paint_circle(circles[i], gwa);
-            circles[i].innerRadius += circles[i].innerAdvanceSpeed;
-            circles[i].outerRadius += circles[i].outerAdvanceSpeed;
-            j++;
-        }
-        circle_num = j;
-
+        circle_num = refresh_circles(gwa, circles, circle_num);
         glXSwapBuffers(dpy, win);
 
         usleep(100000);
