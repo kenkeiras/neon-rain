@@ -105,8 +105,8 @@ void DrawCircle(float cx, float cy, float r, int num_segments){
 }
 
 void paint_circle(struct circle circle, XWindowAttributes wa) {
-    struct rgb color = hsl2rgb(circle.hue, 1, 0.75);
-    glColor3f(color.r, color.g, color.b);
+    struct rgb color = hsl2rgb(circle.hue, 1, 0.5);
+    glColor4f(color.r, color.g, color.b, 0.5);
 
     int radius;
     for (radius = circle.innerRadius;radius < circle.outerRadius; radius++){
@@ -248,7 +248,10 @@ int main(int argc, char *argv[]) {
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
-    glHint(GL_LINE_SMOOTH_HINT,  GL_NICEST);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
     while(1) {
         XGetWindowAttributes(dpy, win, &gwa);
@@ -256,8 +259,6 @@ int main(int argc, char *argv[]) {
 
         glOrtho(0, gwa.width, gwa.height, 0, 0.0f, 100.0f);
 
-        glClearColor(0, 0, 0, 0.5f);
-        glClearDepth( 1.0f);
         glClear(GL_COLOR_BUFFER_BIT |
                 GL_DEPTH_BUFFER_BIT);
 
