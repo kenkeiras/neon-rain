@@ -150,6 +150,13 @@ int refresh_circles(XWindowAttributes wa, struct circle circles[], int circle_nu
         }
 
         paint_circle(circles[i], wa);
+        int speed_diff = circles[i].innerAdvanceSpeed - circles[i].outerAdvanceSpeed;
+        int radius_diff = circles[i].outerRadius - circles[i].innerRadius;
+        if ((speed_diff > 1) && (radius_diff < (speed_diff * 10))){
+
+            circles[i].innerAdvanceSpeed--;
+        }
+
         circles[i].innerRadius += circles[i].innerAdvanceSpeed;
         circles[i].outerRadius += circles[i].outerAdvanceSpeed;
         j++;
@@ -267,6 +274,6 @@ int main(int argc, char *argv[]) {
         circle_num = refresh_circles(gwa, circles, circle_num);
         glXSwapBuffers(dpy, win);
 
-        usleep(100000);
+        usleep(50000);
     }
 }
