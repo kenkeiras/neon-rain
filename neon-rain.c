@@ -34,6 +34,17 @@ struct rgb {
     double b;
 };
 
+
+int max(int x, int y){
+    if (x > y){
+        return x;
+    }
+    else{
+        return y;
+    }
+}
+
+
 /* Hue to Red-Green-Blue */
 double Hue_to_RGB(double P, double Q, double H){
     if (H < 0) {
@@ -117,10 +128,11 @@ void paint_circle(struct circle circle, XWindowAttributes wa) {
 
 struct circle create_circle(XWindowAttributes wa){
     int speed = rand() % 5 + 2;
+    int outer_radius = rand() % 50 + 25;
     struct circle circle = {.centerX = rand() % wa.width,
                             .centerY = rand() % wa.height,
-                            .outerRadius = 50,
-                            .innerRadius = 1,
+                            .outerRadius = outer_radius,
+                            .innerRadius = max(1, outer_radius - ((rand() % 25 ) + 25)),
                             .innerAdvanceSpeed = speed,
                             .outerAdvanceSpeed = speed / (((rand() % 25) + 101) / 100.0f),
                             .hue = rand() % 256
@@ -256,9 +268,6 @@ int main(int argc, char *argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
     while(1) {
         XGetWindowAttributes(dpy, win, &gwa);
