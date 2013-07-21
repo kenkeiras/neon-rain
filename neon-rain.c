@@ -24,20 +24,24 @@
 #include <GL/glx.h>
 #include <GL/glu.h>
 
+// Max. circles on screen at a time
 #define MAX_CIRCLES 7
+
+// Probability (divided by 256) to generate a new circle
 #define RAINING_SPEED 25
 
 struct circle {
     int centerX;
     int centerY;
-    int outerRadius;
-    int innerRadius;
-    int innerAdvanceSpeed;
-    int outerAdvanceSpeed;
-    int hue;
-    int sat;
+    int outerRadius; // Big radius
+    int innerRadius; // Little radius
+    int outerAdvanceSpeed; // Big radius spreading speed
+    int innerAdvanceSpeed; // Little radius spreading speed
+    int hue; // Circle color hue
+    int sat; // Circle color saturation
 };
 
+// RGB color representation
 struct rgb {
     double r;
     double g;
@@ -55,7 +59,11 @@ int max(int x, int y){
 }
 
 
-/* Hue to Red-Green-Blue */
+/**
+ * Represent hue into RGB.
+ *  hsl2rgb auxiliary function.
+ *
+ */
 double Hue_to_RGB(double P, double Q, double H){
     if (H < 0) {
         H += 1.0;
@@ -76,7 +84,16 @@ double Hue_to_RGB(double P, double Q, double H){
     return P;
 }
 
-/* Hue-Saturation-Light to RGB (0 - 1) */
+
+/**
+ * Convert the HSL color representation to RGB.
+ *
+ * @param h Input color hue.
+ * @param s Input color saturation.
+ * @param l Input color lightness.
+ *
+ * @return The rgb color.
+ */
 struct rgb hsl2rgb(double h, double s, double l){
 
     double P, Q;
@@ -102,7 +119,7 @@ struct rgb hsl2rgb(double h, double s, double l){
 }
 
 
-// Took from http://slabode.exofire.net/circle_draw.shtml
+// Took shamelessly from http://slabode.exofire.net/circle_draw.shtml
 void DrawCircle(float cx, float cy, float r, int num_segments){
     float theta = 2 * 3.1415926 / ((float)num_segments);
     float c = cosf(theta);//precalculate the sine and cosine
@@ -125,6 +142,14 @@ void DrawCircle(float cx, float cy, float r, int num_segments){
     glEnd();
 }
 
+
+/**
+ * Paints a circle in the screen.
+ *
+ * @param circle The circle to paint.
+ * @param wa     Screen window attributes.
+ *
+ */
 void paint_circle(struct circle circle, XWindowAttributes wa) {
     struct rgb color = hsl2rgb(circle.hue, 1, 0.5);
     glColor4f(color.r, color.g, color.b, 0.5);
@@ -136,6 +161,15 @@ void paint_circle(struct circle circle, XWindowAttributes wa) {
 }
 
 
+/**
+ * Generate a new circle.
+ *  Most parameters are intended to be random inside some parameters.
+ *
+ * @param wa The window attributes (to create the circle inside it).
+ *
+ * @return The generated circle.
+ *
+ */
 struct circle create_circle(XWindowAttributes wa){
     int speed = rand() % 5 + 2;
     int outer_radius = rand() % 50 + 25;
@@ -152,7 +186,18 @@ struct circle create_circle(XWindowAttributes wa){
 }
 
 
+/**
+ * (Possibly) create new circles, paint all to screen and refresh its state.
+ *
+ * @param wa Window attributes to fit the circles in.
+ * @param circles The circle list.
+ * @param circle_num The number of circles currently on screen.
+ *
+ * @return The number of circles left after the iteration.
+ */
 int refresh_circles(XWindowAttributes wa, struct circle circles[], int circle_num){
+    // If no circles in screen or there is some space and random falls behind
+    // the given value, create a new circle.
     if ((circle_num == 0) ||
         ((circle_num < MAX_CIRCLES) && ((rand() % 256) < RAINING_SPEED))){
 
@@ -250,6 +295,7 @@ int main(int argc, char *argv[]) {
         XMapWindow(dpy, root);
     }
 
+    // Mix OpenGL and X11
     vi = glXChooseVisual(dpy, 0, att);
 
     if(vi == NULL) {
@@ -272,13 +318,13 @@ int main(int argc, char *argv[]) {
     glc = glXCreateContext(dpy, vi, NULL, GL_TRUE);
     glXMakeCurrent(dpy, win, glc);
 
-
-
+    // OpenGL properties
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
     while(1) {
+        // Clean screen
         XGetWindowAttributes(dpy, win, &gwa);
         glLoadIdentity();
 
@@ -289,7 +335,10 @@ int main(int argc, char *argv[]) {
 
         glViewport(0, 0, gwa.width, gwa.height);
 
+        // Refresh the "raining" state
         circle_num = refresh_circles(gwa, circles, circle_num);
+
+        // Paint it to the screen
         glXSwapBuffers(dpy, win);
 
         usleep(50000);
