@@ -16,7 +16,7 @@ Add this line to ~/.xscreensaver to be able to select it on `xscreensaver-demo`.
 Library dependencies
 --------------------
 
-X11, OpenGL and GLUT.
+X11 and OpenGL.
 
 
 About the license

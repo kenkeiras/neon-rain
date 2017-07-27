@@ -13,6 +13,7 @@
 #include <math.h>
 #include <time.h>
 #include <unistd.h>
+#include <assert.h>
 
 /* X11 Headers */
 #include <X11/Xlib.h>
@@ -24,11 +25,15 @@
 #include <GL/glx.h>
 #include <GL/glu.h>
 
+/* Shader files */
+#include "empty_shader.frag.c"
+
 // Max. circles on screen at a time
 #define MAX_CIRCLES 7
 
 // Probability (divided by 256) to generate a new circle
 #define RAINING_SPEED 25
+
 
 struct circle {
     int centerX;
@@ -56,6 +61,23 @@ int max(int x, int y){
     else{
         return y;
     }
+}
+
+
+static int check_shader_compilation(GLuint shader, const char* src){
+    GLint n;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &n);
+    if( n == GL_FALSE ) {
+        GLchar *info_log;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &n);
+        info_log = malloc(n);
+        glGetShaderInfoLog(shader, n, &n, info_log);
+        fprintf(stderr, "----- >8 ----\n%s\n----- >8 ----\n", src);
+        fprintf(stderr, "Shader compilation failed: %*s\n", n, info_log);
+        free(info_log);
+        return 0;
+    }
+    return 1;
 }
 
 
@@ -121,6 +143,7 @@ struct rgb hsl2rgb(double h, double s, double l){
 
 // Took shamelessly from http://slabode.exofire.net/circle_draw.shtml
 void DrawCircle(float cx, float cy, float r, int num_segments){
+    assert(num_segments != 0);
     float theta = 2 * 3.1415926 / ((float)num_segments);
     float c = cosf(theta);//precalculate the sine and cosine
     float s = sinf(theta);
@@ -232,6 +255,19 @@ int refresh_circles(XWindowAttributes wa, struct circle circles[], int circle_nu
 }
 
 
+void set_empty_shader(){
+    GLuint empty_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(empty_frag_shader, 1, &EMPTY_FRAG_SHADER, NULL);
+    glCompileShader(empty_frag_shader);
+    assert(check_shader_compilation(empty_frag_shader, EMPTY_FRAG_SHADER));
+
+    GLuint prog = glCreateProgram();
+    glAttachShader(prog, empty_frag_shader);
+    glLinkProgram(prog);
+    glUseProgram(prog);
+}
+
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
@@ -322,6 +358,10 @@ int main(int argc, char *argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_LINE_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+    printf("OpenGL version: %s\n", glGetString(GL_VERSION));
+
+    set_empty_shader();
 
     while(1) {
         // Clean screen

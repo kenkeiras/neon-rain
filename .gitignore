@@ -1,1 +1,9 @@
+# Built files
 neon-rain
+*.frag.c
+
+# Temporary files
+*#*
+*.tmp
+*.bak
+*~
