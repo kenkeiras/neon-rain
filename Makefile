@@ -1,7 +1,7 @@
 all: neon-rain
 
 empty_shader.frag.c: empty_shader.frag.glsl
-	(echo 'const char* EMPTY_FRAG_SHADER = ""\n'; \
+	(echo 'const char* EMPTY_FRAG_SHADER = ""'; \
 	 cat $< | sed -r 's/^(.*)$$/"\1\\n"/g'; \
 	 echo ';' \
 	) > $@
