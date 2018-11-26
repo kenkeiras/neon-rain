@@ -10,7 +10,7 @@ Installation
 Run `make && make install` to compile and store it to the xscreensaver folder.
 Add this line to ~/.xscreensaver to be able to select it on `xscreensaver-demo`.
 
-  `- GL:                           neon-rain -root                             \n`
+  `                                neon-rain -root                             \n`
 
 
 Library dependencies
